@@ -1,0 +1,8 @@
+black
+python-dotenv
+PyGithub
+spacy
+python-Levenshtein
+fuzzywuzzy
+git+https://github.com/SwanseaUniversityMedical/pyconceptlibraryclient.git@v1.0.0
+openai

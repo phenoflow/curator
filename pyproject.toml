@@ -1,0 +1,18 @@
+[project]
+name = "curator" 
+description = "Curator" 
+readme = "README.md"
+version = "1.0.0"
+requires-python = ">=3.7"
+license = {file = "LICENSE.md"}
+dependencies = [
+  "pyconceptlibraryclient@git+https://github.com/SwanseaUniversityMedical/pyconceptlibraryclient.git@v1.0.0"
+]
+[build-system]
+requires = ["setuptools>=43.0.0", "wheel"]
+[tool.setuptools]
+package-data = {"curator" = ["py.typed"]}
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+log_cli = "true"
+log_cli_level = "DEBUG"
