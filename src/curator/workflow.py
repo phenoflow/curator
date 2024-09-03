@@ -51,7 +51,7 @@ class Workflow:
         self.__ignoreInStepNameCache[word] = ignore
         return ignore
 
-    def __isNegative(self, phrase: str) -> bool:
+    def _isNegative(self, phrase: str) -> bool:
         phrase = phrase.lower()
         words: list[str] = phrase.split(' ')
         return (
@@ -59,8 +59,8 @@ class Workflow:
             or 'never' in words
             or 'no' in words
             or 'without' in words
-            or len([word.startswith('non') for word in words]) > 0
-            or len([word.startswith('un') for word in words]) > 0
+            or any([word.startswith('non') for word in words])
+            or any([word.startswith('un') for word in words])
         )
 
     def __compareTwoStrings(self, str1: str, str2: str) -> float:
@@ -275,12 +275,12 @@ class Workflow:
                                     in intersection[(workflowA, workflowB)]
                                 )
                                 or (
-                                    not self.__isNegative(
+                                    not self._isNegative(
                                         ' '.join(
                                             workflowStepA.split('---')[0].split('-')
                                         )
                                     )
-                                    == self.__isNegative(
+                                    == self._isNegative(
                                         ' '.join(
                                             workflowStepB.split('---')[0].split('-')
                                         )

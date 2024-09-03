@@ -3,7 +3,7 @@ import pytest  # type: ignore
 from dotenv import load_dotenv
 
 from curator.workflow import Workflow
-from util.set_tuple_encoder import SetTupleEncoder
+from tests.workflow import TestWorkflow
 from curator.curator_github import CuratorGithub
 from curator.curator_types import CuratorRepo
 
@@ -17,6 +17,14 @@ def getPhenotypeGroups() -> dict[CuratorRepo, list[CuratorRepo]]:
     repoToSteps: dict[CuratorRepo, list[str]] = CuratorGithub().getRepoToSteps()
     return Workflow().getPhenotypeGroups(
         {key: repoToSteps[key] for key in list(repoToSteps)[: sys.maxsize]}
+    )
+
+
+def test_isNegative() -> None:
+    assert TestWorkflow().isNegative(
+        ' '.join('anxiety-specified---primary.cwl'.split('---')[0].split('-'))
+    ) != TestWorkflow().isNegative(
+        ' '.join('anxiety-unspecified---icd.cwl'.split('---')[0].split('-'))
     )
 
 
