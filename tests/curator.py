@@ -17,3 +17,11 @@ class TestCurator(Curator):
         self, leadPhenotype: CuratorRepo, phenotypes: list[CuratorRepo]
     ) -> list[CuratorRepo]:
         return super()._removeUnrelatedPhenotypesUsingLLM(leadPhenotype, phenotypes)
+
+    def removeDuplicates(
+        self,
+        possibleDuplicates: list[CuratorRepo],
+        phenotypeGroups: dict[CuratorRepo, list[CuratorRepo]],
+        ignore: list[CuratorRepo],
+    ) -> dict[CuratorRepo, list[CuratorRepo]]:
+        return super()._removeDuplicates(possibleDuplicates, phenotypeGroups, ignore)

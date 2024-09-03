@@ -48,40 +48,68 @@ class Curator:
         self, leadPhenotype: CuratorRepo, phenotypes: list[CuratorRepo]
     ) -> list[CuratorRepo]:
 
-        message: str = (
-            'Identify the numbers of the conditions below that are not synonyms for, or involved in the treatment of, '
-            + self.__getPhenotype(leadPhenotype.name)
-            + ':\n'
-            + '\n'.join(
-                [
-                    str(phenotypes.index(condition))
-                    + ': '
-                    + self.__getPhenotype(condition.name)
-                    for condition in phenotypes
-                ]
+        def getExcluded(prompt: str) -> list[str]:
+            formattedPhenotypes: str = (
+                '\n'.join(
+                    [
+                        str(phenotypes.index(condition))
+                        + ': '
+                        + self.__getPhenotype(condition.name)
+                        for condition in phenotypes
+                    ]
+                )
+                + '\nPrint these numbers as a list (e.g. [1, 2, 3]). This list must be the last thing in your response.'
             )
-            + '\nPrint these numbers as a list (e.g. [1, 2, 3]). This list must be the last thing in your response.'
-        )
-        self.__logger.debug(message)
-        response: str = self.__LLMClient.sendMessage(message)
-        self.__logger.debug(response)
-        try:
-            extracted: str | None = (
-                match.group(1)
-                if (match := re.search(r'\[([0-9,\s]*)\]', response.strip()))
-                else None
+            message: str = prompt + ':\n' + formattedPhenotypes
+            self.__logger.debug(message)
+            response: str = self.__LLMClient.sendMessage(message)
+            self.__logger.debug(response)
+            try:
+                extracted: str | None = (
+                    match.group(1)
+                    if (match := re.search(r'\[([0-9,\s]*)\]', response.strip()))
+                    else None
+                )
+                if extracted:
+                    return extracted.split(', ')
+                else:
+                    raise Exception
+            except:
+                self.__logger.warning('unable to extract removals from: ' + response)
+                return []
+
+        return [
+            phenotype
+            for phenotype in phenotypes
+            if str(phenotypes.index(phenotype))
+            not in (
+                getExcluded(
+                    'Identify the numbers of the conditions below that are not synonyms for, or involved in the treatment of, '
+                    + self.__getPhenotype(leadPhenotype.name)
+                )
+                + getExcluded(
+                    'Identify the numbers of the conditions below that specifically mention a subcondition (e.g. a particular type) of '
+                    + self.__getPhenotype(leadPhenotype.name)
+                )
             )
-            if extracted:
-                return [
-                    condition
-                    for condition in phenotypes
-                    if str(phenotypes.index(condition)) not in extracted.split(', ')
+        ]
+
+    def _removeDuplicates(
+        self,
+        possibleDuplicates: list[CuratorRepo],
+        phenotypeGroups: dict[CuratorRepo, list[CuratorRepo]],
+        ignore: list[CuratorRepo],
+    ) -> dict[CuratorRepo, list[CuratorRepo]]:
+        for possibleDuplicate in possibleDuplicates:
+            for key in list(set(phenotypeGroups.keys()) - set(ignore)):
+                phenotypeGroups[key] = [
+                    phenotype
+                    for phenotype in phenotypeGroups[key]
+                    if phenotype != possibleDuplicate
                 ]
-            else:
-                raise Exception
-        except:
-            self.__logger.warning('unable to extract removals from: ' + response)
-        return phenotypes
+                if not phenotypeGroups[key]:
+                    del phenotypeGroups[key]
+        return phenotypeGroups
 
     def getPhenotypeGroups(
         self,
@@ -90,7 +118,6 @@ class Curator:
         phenotypeGroups: dict[CuratorRepo, list[CuratorRepo]] = (
             self.__workflow.getPhenotypeGroups(reposToSteps)
         )
-        original = list(phenotypeGroups.keys())
         for phenotypeGroup in list(
             dict(
                 sorted(
@@ -100,6 +127,9 @@ class Curator:
                 )
             ).items()
         )[: int(self.__config.get('CURATOR', 'MAX_LLM'))]:
+            originalPhenotypesInGroup: list[CuratorRepo] = phenotypeGroups[
+                phenotypeGroup[0]
+            ]
             phenotypeGroups[phenotypeGroup[0]] = (
                 self._removeUnrelatedPhenotypesUsingLLM(
                     phenotypeGroup[0],
@@ -109,7 +139,16 @@ class Curator:
                     ),
                 )
             )
-        return {repo: phenotypeGroups[repo] for repo in original}
+            phenotypeGroups = self._removeDuplicates(
+                list(
+                    set(phenotypeGroups[phenotypeGroup[0]])
+                    - set(originalPhenotypesInGroup)
+                ),
+                phenotypeGroups,
+                [phenotypeGroup[0]],
+            )
+
+        return phenotypeGroups
 
     def getIntersections(
         self, workflows: dict[CuratorRepo, list[str]]

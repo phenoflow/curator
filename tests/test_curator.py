@@ -16,9 +16,34 @@ def load_env() -> None:
     load_dotenv()
 
 
+def test_removeDuplicates() -> None:
+    assert TestCurator().removeDuplicates(
+        [CuratorRepo('Metformin', '')],
+        {
+            CuratorRepo('Type 1 Diabetes', ''): [
+                CuratorRepo('Metformin', ''),
+            ],
+            CuratorRepo('Type 2 Diabetes', ''): [
+                CuratorRepo('Insulin', ''),
+                CuratorRepo('Metformin', ''),
+            ],
+            CuratorRepo('COPD', ''): [
+                CuratorRepo('Metformin', ''),
+            ],
+        },
+        [CuratorRepo('Type 1 Diabetes', '')],
+    ) == {
+        CuratorRepo('Type 1 Diabetes', ''): [
+            CuratorRepo('Metformin', ''),
+        ],
+        CuratorRepo('Type 2 Diabetes', ''): [
+            CuratorRepo('Insulin', ''),
+        ],
+    }
+
+
 def test_removeUnrelatedPhenotypesUsingLLM() -> None:
-    curator: TestCurator = TestCurator()
-    assert curator.removeUnrelatedPhenotypesUsingLLM(
+    assert TestCurator().removeUnrelatedPhenotypesUsingLLM(
         CuratorRepo('Type 1 Diabetes', ''),
         [
             CuratorRepo('Type 2 Diabetes', ''),
