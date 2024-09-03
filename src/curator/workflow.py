@@ -70,34 +70,71 @@ class Workflow:
         self.__cache[(str1, str2)] = similarity
         return similarity
 
-    def __workflowStepAnalysis(
+    def _workflowStepAnalysis(
         self,
         workflowA: CuratorRepo,
         workflowStepA: str,
         workflowB: CuratorRepo,
         workflowStepB: str,
     ) -> bool:
+
+        def clean(input: str) -> str:
+            return re.sub(r'(\w)--(\w)', r'\1-\2', input)
+
         SIMILARITY_THRESHOLD: float = 0.8
-        for workflowStepANameComponent in workflowStepA.split('---')[0].split('-'):
+        for workflowStepANameComponent in (
+            clean(workflowStepA).split('---')[0].split('-')
+        ):
             if self.__ignoreInStepName(workflowStepANameComponent):
                 continue
-            for workflowStepBNameComponent in workflowStepB.split('---')[0].split('-'):
+            for workflowStepBNameComponent in (
+                clean(workflowStepB).split('---')[0].split('-')
+            ):
                 if self.__ignoreInStepName(workflowStepBNameComponent):
                     continue
+                self.__logger.debug(
+                    'comparing '
+                    + workflowStepANameComponent
+                    + ' and '
+                    + workflowStepBNameComponent
+                )
                 if (
-                    (workflowStepANameComponent.lower() in workflowA.name.lower())
+                    workflowStepANameComponent.lower() in workflowA.name.lower()
                     and workflowStepBNameComponent.lower() in workflowB.name.lower()
                 ) or (
-                    (workflowA.name.lower() in workflowStepANameComponent.lower())
+                    workflowA.name.lower() in workflowStepANameComponent.lower()
                     and workflowB.name.lower() in workflowStepBNameComponent.lower()
                 ):
-                    return False
-                return (
+                    self.__logger.debug(
+                        'no match because name component in condition name (or vice versa): '
+                        + workflowStepANameComponent.lower()
+                        + ' '
+                        + workflowA.name.lower()
+                        + ' '
+                        + workflowStepBNameComponent.lower()
+                        + ' '
+                        + workflowB.name.lower()
+                    )
+                    continue
+                if (
                     self.__compareTwoStrings(
                         workflowStepANameComponent, workflowStepBNameComponent
                     )
                     > SIMILARITY_THRESHOLD
-                )
+                ):
+                    return True
+                else:
+                    self.__logger.debug(
+                        'no match because similarity not high enough: '
+                        + workflowStepANameComponent.lower()
+                        + ' '
+                        + workflowA.name.lower()
+                        + ' '
+                        + workflowStepBNameComponent.lower()
+                        + ' '
+                        + workflowB.name.lower()
+                    )
+        self.__logger.debug('no match')
         return False
 
     def __samePhenotype(self, nameA: str, nameB: str, similarity: bool = False) -> bool:
@@ -289,7 +326,7 @@ class Workflow:
                             ):
                                 continue
                             # if not workflowStepA.split('---')[1] == workflowStepB.split('---')[1]: continue
-                            if self.__workflowStepAnalysis(
+                            if self._workflowStepAnalysis(
                                 workflowA, workflowStepA, workflowB, workflowStepB
                             ):
                                 intersection.setdefault(

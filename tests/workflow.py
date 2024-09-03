@@ -8,3 +8,14 @@ class TestWorkflow(Workflow):
 
     def isNegative(self, phrase: str) -> bool:
         return super()._isNegative(phrase)
+
+    def workflowStepAnalysis(
+        self,
+        workflowA: CuratorRepo,
+        workflowStepA: str,
+        workflowB: CuratorRepo,
+        workflowStepB: str,
+    ) -> bool:
+        return super()._workflowStepAnalysis(
+            workflowA, workflowStepA, workflowB, workflowStepB
+        )
