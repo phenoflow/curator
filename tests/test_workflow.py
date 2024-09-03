@@ -27,10 +27,10 @@ def test_getPhenotypeGroups() -> None:
 
 def test_workflowIntersection() -> None:
     repoToSteps: dict[CuratorRepo, list[str]] = CuratorGithub().getRepoToSteps()
-    workflowIntersections: dict[
+    intersections: dict[
         CuratorRepo, dict[tuple[CuratorRepo, CuratorRepo], set[tuple[str, str]]]
-    ] = Workflow().workflowIntersections(
+    ] = Workflow().getIntersections(
         {key: repoToSteps[key] for key in list(repoToSteps)[: sys.maxsize]},
         getPhenotypeGroups(),
     )
-    assert len(workflowIntersections) == 135
+    assert len(intersections) == 135

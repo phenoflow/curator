@@ -11,16 +11,18 @@ class Workflow:
     def __init__(self) -> None:
         self.__logger: logging.Logger = logging.getLogger()
         self.__ignoreInStepNameCache: dict[str, bool] = {}
-        self.__compareTwoStrings: dict[tuple[str, str], float] = {}
+        self.__cache: dict[tuple[str, str], float] = {}
         self.__nlp = spacy.load('en_core_web_sm')
 
-    def ignoreInStepName(self, word: str) -> bool:
+    def __ignoreInStepName(self, word: str) -> bool:
         if len(word) == 0:
             self.__logger.warning('zero length word passed')
             return True
+        if word.isdigit():
+            return False
         if word in self.__ignoreInStepNameCache:
             return self.__ignoreInStepNameCache[word]
-        conditionSynonyms: list[str] = [
+        phenotypeSynonyms: list[str] = [
             'syndrome',
             'infection',
             'infections',
@@ -41,7 +43,7 @@ class Workflow:
         tag: str = self.__nlp(word)[0].pos_
         ignore: bool = (
             len(word) <= 2
-            or word.lower() in conditionSynonyms + ignoreWords
+            or word.lower() in phenotypeSynonyms + ignoreWords
             or (tag == 'CCONJ' or tag == 'SCONJ')
             or tag == 'ADP'
             or tag == 'ADV'
@@ -49,7 +51,7 @@ class Workflow:
         self.__ignoreInStepNameCache[word] = ignore
         return ignore
 
-    def isNegative(self, phrase: str) -> bool:
+    def __isNegative(self, phrase: str) -> bool:
         phrase = phrase.lower()
         words: list[str] = phrase.split(' ')
         return (
@@ -61,26 +63,26 @@ class Workflow:
             or len([word.startswith('un') for word in words]) > 0
         )
 
-    def compareTwoStrings(self, str1: str, str2: str) -> float:
-        if (str1, str2) in self.__compareTwoStrings:
-            return self.__compareTwoStrings[(str1, str2)]
+    def __compareTwoStrings(self, str1: str, str2: str) -> float:
+        if (str1, str2) in self.__cache:
+            return self.__cache[(str1, str2)]
         similarity: float = fuzz.ratio(str1, str2) / 100.0
-        self.__compareTwoStrings[(str1, str2)] = similarity
+        self.__cache[(str1, str2)] = similarity
         return similarity
 
-    def workflowStepAnalysis(
+    def __workflowStepAnalysis(
         self,
         workflowA: CuratorRepo,
         workflowStepA: str,
         workflowB: CuratorRepo,
         workflowStepB: str,
     ) -> bool:
-        SIMILARITY_THRESHOLD = 0.8
+        SIMILARITY_THRESHOLD: float = 0.8
         for workflowStepANameComponent in workflowStepA.split('---')[0].split('-'):
-            if self.ignoreInStepName(workflowStepANameComponent):
+            if self.__ignoreInStepName(workflowStepANameComponent):
                 continue
             for workflowStepBNameComponent in workflowStepB.split('---')[0].split('-'):
-                if self.ignoreInStepName(workflowStepBNameComponent):
+                if self.__ignoreInStepName(workflowStepBNameComponent):
                     continue
                 if (
                     (workflowStepANameComponent.lower() in workflowA.name.lower())
@@ -91,22 +93,24 @@ class Workflow:
                 ):
                     return False
                 return (
-                    self.compareTwoStrings(
+                    self.__compareTwoStrings(
                         workflowStepANameComponent, workflowStepBNameComponent
                     )
                     > SIMILARITY_THRESHOLD
                 )
         return False
 
-    def samePhenotype(self, nameA: str, nameB: str) -> bool:
+    def __samePhenotype(self, nameA: str, nameB: str, similarity: bool = False) -> bool:
+
+        SIMILARITY_THRESHOLD: float = 0.9
 
         def clean(input: str) -> str:
-            return re.sub(r'[^a-zA-Z]', '', input.lower())
+            return re.sub(r'[^a-zA-Z0-9]', '', input.lower())
 
         nameA = ' '.join(
             list(
                 filter(
-                    lambda word: not self.ignoreInStepName(word),
+                    lambda word: not self.__ignoreInStepName(word),
                     nameA.split('---')[0].split('-'),
                 )
             )
@@ -114,12 +118,26 @@ class Workflow:
         nameB = ' '.join(
             list(
                 filter(
-                    lambda word: not self.ignoreInStepName(word),
+                    lambda word: not self.__ignoreInStepName(word),
                     nameB.split('---')[0].split('-'),
                 )
             )
         )
-        return clean(nameA) == clean(nameB)
+        nameA = clean(nameA)
+        nameB = clean(nameB)
+        return (
+            len(nameA) > 0
+            and len(nameB) > 0
+            and (
+                (
+                    self.__compareTwoStrings(nameA, nameB) > SIMILARITY_THRESHOLD
+                    if similarity
+                    else False
+                )
+                or nameA.startswith(nameB)
+                or nameB.startswith(nameA)
+            )
+        )
 
     def getPhenotypeGroups(
         self, workflows: dict[CuratorRepo, list[str]]
@@ -166,7 +184,7 @@ class Workflow:
                     for phenotype in sublist
                 ]:
                     continue
-                if self.samePhenotype(workflowA.name, workflowB.name):
+                if self.__samePhenotype(workflowA.name, workflowB.name):
                     phenotypeGroups.setdefault(workflowA, []).append(workflowB)
                     with open(path, 'wb') as f:
                         pickle.dump(phenotypeGroups, f)
@@ -176,7 +194,7 @@ class Workflow:
         )
         return phenotypeGroups
 
-    def workflowIntersections(
+    def getIntersections(
         self,
         workflows: dict[CuratorRepo, list[str]],
         phenotypeGroups: dict[CuratorRepo, list[CuratorRepo]],
@@ -257,12 +275,12 @@ class Workflow:
                                     in intersection[(workflowA, workflowB)]
                                 )
                                 or (
-                                    not self.isNegative(
+                                    not self.__isNegative(
                                         ' '.join(
                                             workflowStepA.split('---')[0].split('-')
                                         )
                                     )
-                                    == self.isNegative(
+                                    == self.__isNegative(
                                         ' '.join(
                                             workflowStepB.split('---')[0].split('-')
                                         )
@@ -271,7 +289,7 @@ class Workflow:
                             ):
                                 continue
                             # if not workflowStepA.split('---')[1] == workflowStepB.split('---')[1]: continue
-                            if self.workflowStepAnalysis(
+                            if self.__workflowStepAnalysis(
                                 workflowA, workflowStepA, workflowB, workflowStepB
                             ):
                                 intersection.setdefault(

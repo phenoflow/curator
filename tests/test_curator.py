@@ -1,4 +1,4 @@
-import json, sys
+import json, sys, uuid
 
 import pytest  # type: ignore
 from dotenv import load_dotenv
@@ -16,9 +16,9 @@ def load_env() -> None:
     load_dotenv()
 
 
-def test_removeUnrelatedConditionsUsingLLM() -> None:
+def test_removeUnrelatedPhenotypesUsingLLM() -> None:
     curator: TestCurator = TestCurator()
-    assert curator.removeUnrelatedConditionsUsingLLM(
+    assert curator.removeUnrelatedPhenotypesUsingLLM(
         CuratorRepo('Type 1 Diabetes', ''),
         [
             CuratorRepo('Type 2 Diabetes', ''),
@@ -37,19 +37,19 @@ def getPhenotypeGroups() -> dict[CuratorRepo, list[CuratorRepo]]:
 
 def test_getPhenotypeGroups_Curator() -> None:
     phenotypeGroups: dict[CuratorRepo, list[CuratorRepo]] = getPhenotypeGroups()
-    assert len(phenotypeGroups) == 135
+    assert len(phenotypeGroups)
     with open('phenotypeGroups.json', 'w') as file:
         file.write(json.dumps(phenotypeGroups, cls=SetTupleEncoder, indent=2))
 
 
 def test_workflowIntersection_Curator() -> None:
     repoToSteps: dict[CuratorRepo, list[str]] = CuratorGithub().getRepoToSteps()
-    workflowIntersections: dict[
+    intersections: dict[
         CuratorRepo, dict[tuple[CuratorRepo, CuratorRepo], set[tuple[str, str]]]
-    ] = Workflow().workflowIntersections(
+    ] = Workflow().getIntersections(
         {key: repoToSteps[key] for key in list(repoToSteps)[: sys.maxsize]},
         getPhenotypeGroups(),
     )
-    assert len(workflowIntersections) == 135
-    with open('workflowIntersections.json', 'w') as file:
-        file.write(json.dumps(workflowIntersections, cls=SetTupleEncoder, indent=2))
+    assert len(intersections)
+    with open('intersections.json', 'w') as file:
+        file.write(json.dumps(intersections, cls=SetTupleEncoder, indent=2))

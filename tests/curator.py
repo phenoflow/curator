@@ -6,14 +6,14 @@ class TestCurator(Curator):
 
     __test__ = False
 
-    def additionalConditionsFromHDR(
+    def additionalPhenotypesFromHDR(
         self,
         phenotypeGroup: tuple[CuratorRepo, list[CuratorRepo]],
         repos: list[CuratorRepo],
     ) -> list[CuratorRepo]:
-        return super()._additionalConditionsFromHDR(phenotypeGroup, repos)
+        return super()._additionalPhenotypesFromHDR(phenotypeGroup, repos)
 
-    def removeUnrelatedConditionsUsingLLM(
-        self, leadCondition: CuratorRepo, conditions: list[CuratorRepo]
+    def removeUnrelatedPhenotypesUsingLLM(
+        self, leadPhenotype: CuratorRepo, phenotypes: list[CuratorRepo]
     ) -> list[CuratorRepo]:
-        return super()._removeUnrelatedConditionsUsingLLM(leadCondition, conditions)
+        return super()._removeUnrelatedPhenotypesUsingLLM(leadPhenotype, phenotypes)

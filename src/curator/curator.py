@@ -17,15 +17,15 @@ class Curator:
         self.__client: Client = Client(public=True, url=DOMAINS.HDRUK)
         self.__LLMClient = LLMClient(False)
 
-    def __getCondition(self, repoName: str) -> str:
+    def __getPhenotype(self, repoName: str) -> str:
         return repoName.split('---')[0].replace('-', ' ')
 
-    def _additionalConditionsFromHDR(
+    def _additionalPhenotypesFromHDR(
         self,
         phenotypeGroup: tuple[CuratorRepo, list[CuratorRepo]],
         repos: list[CuratorRepo],
     ) -> list[CuratorRepo]:
-        searchName: str = self.__getCondition(phenotypeGroup[0].name)
+        searchName: str = self.__getPhenotype(phenotypeGroup[0].name)
         self.__logger.debug('searching for: ' + searchName)
         results: list[Any] = self.__client.phenotypes.get(search=searchName)
         if len(results) > 0:
@@ -44,20 +44,20 @@ class Curator:
         else:
             return []
 
-    def _removeUnrelatedConditionsUsingLLM(
-        self, leadCondition: CuratorRepo, conditions: list[CuratorRepo]
+    def _removeUnrelatedPhenotypesUsingLLM(
+        self, leadPhenotype: CuratorRepo, phenotypes: list[CuratorRepo]
     ) -> list[CuratorRepo]:
 
         message: str = (
             'Identify the numbers of the conditions below that are not synonyms for, or involved in the treatment of, '
-            + self.__getCondition(leadCondition.name)
+            + self.__getPhenotype(leadPhenotype.name)
             + ':\n'
             + '\n'.join(
                 [
-                    str(conditions.index(condition))
+                    str(phenotypes.index(condition))
                     + ': '
-                    + self.__getCondition(condition.name)
-                    for condition in conditions
+                    + self.__getPhenotype(condition.name)
+                    for condition in phenotypes
                 ]
             )
             + '\nPrint these numbers as a list (e.g. [1, 2, 3]). This list must be the last thing in your response.'
@@ -74,14 +74,14 @@ class Curator:
             if extracted:
                 return [
                     condition
-                    for condition in conditions
-                    if str(conditions.index(condition)) not in extracted.split(', ')
+                    for condition in phenotypes
+                    if str(phenotypes.index(condition)) not in extracted.split(', ')
                 ]
             else:
                 raise Exception
         except:
             self.__logger.warning('unable to extract removals from: ' + response)
-        return conditions
+        return phenotypes
 
     def getPhenotypeGroups(
         self,
@@ -101,19 +101,19 @@ class Curator:
             ).items()
         )[: int(self.__config.get('CURATOR', 'MAX_LLM'))]:
             phenotypeGroups[phenotypeGroup[0]] = (
-                self._removeUnrelatedConditionsUsingLLM(
+                self._removeUnrelatedPhenotypesUsingLLM(
                     phenotypeGroup[0],
                     phenotypeGroup[1]
-                    + self._additionalConditionsFromHDR(
+                    + self._additionalPhenotypesFromHDR(
                         phenotypeGroup, list(reposToSteps.keys())
                     ),
                 )
             )
         return {repo: phenotypeGroups[repo] for repo in original}
 
-    def workflowIntersections(
+    def getIntersections(
         self, workflows: dict[CuratorRepo, list[str]]
     ) -> dict[CuratorRepo, dict[tuple[CuratorRepo, CuratorRepo], set[tuple[str, str]]]]:
-        return self.__workflow.workflowIntersections(
+        return self.__workflow.getIntersections(
             workflows, self.getPhenotypeGroups(workflows)
         )
