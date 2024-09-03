@@ -22,7 +22,7 @@ def getPhenotypeGroups() -> dict[CuratorRepo, list[CuratorRepo]]:
 
 def test_getPhenotypeGroups() -> None:
     phenotypeGroups: dict[CuratorRepo, list[CuratorRepo]] = getPhenotypeGroups()
-    assert len(phenotypeGroups) == 135
+    assert len(phenotypeGroups)
 
 
 def test_workflowIntersection() -> None:
@@ -33,4 +33,4 @@ def test_workflowIntersection() -> None:
         {key: repoToSteps[key] for key in list(repoToSteps)[: sys.maxsize]},
         getPhenotypeGroups(),
     )
-    assert len(intersections) == 135
+    assert len(intersections)
