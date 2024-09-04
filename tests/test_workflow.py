@@ -60,6 +60,30 @@ def test_workflowStepAnalysis() -> None:
         ),
         'clinic-long-covid---primary.cwl',
     )
+    assert not testWorkflow.workflowStepAnalysis(
+        CuratorRepo(
+            'Cardiovascular-Disease---99107750-16f0-11ef-9de4-4d4ea830ad16',
+            'Cardiovascular Disease (Psoriasis Association Study with CVD) - PH6',
+        ),
+        'cardiovascular-disease-psoriasis-association-study-with-cvd-asystole---primary.cwl',
+        CuratorRepo(
+            'Cardiovascular-Disease-Risk-Score---e69ab730-1a36-11ef-9de4-4d4ea830ad16',
+            'Cardiovascular Disease (CVD) Risk Score - PH579',
+        ),
+        'cardiovascular-disease-cvd-risk-score---primary.cwl',
+    )
+    assert not testWorkflow.workflowStepAnalysis(
+        CuratorRepo(
+            'Diabetes---94b07310-1d47-11ef-94c0-09c4aef33dd',
+            'Diabetes (Diagnostic Code) - PH895',
+        ),
+        'diabetes-diagnostic-code-ketoacidosis---primary.cwl',
+        CuratorRepo(
+            'Diabetes---74eb7c70-1d4a-11ef-94c0-09c4aef33dd3',
+            'Diabetes (Drug Code) - PH896',
+        ),
+        'diabetes-drug-code-sitagliptin---primary.cwl',
+    )
 
 
 def getPhenotypeGroups() -> dict[CuratorRepo, list[CuratorRepo]]:

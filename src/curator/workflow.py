@@ -17,6 +17,18 @@ class Workflow:
     def __getNameComponents(self, name: str) -> list[str]:
         return name.rsplit('---', 1)[0].split('-') if '---' in name else []
 
+    def __getAboutComponents(self, about: str) -> list[str]:
+        return list(
+            map(
+                lambda aboutComponent: aboutComponent.replace('(', '')
+                .replace(')', '')
+                .replace('/', '')
+                .replace(' ', '-')
+                .lower(),
+                about.split(' - '),
+            )
+        )
+
     def __ignoreInStepName(self, word: str) -> bool:
         if len(word) == 0:
             return True
@@ -78,52 +90,82 @@ class Workflow:
         workflowStepA: str,
         workflowB: CuratorRepo,
         workflowStepB: str,
+        similarityThreshold: float = 0.8,
     ) -> bool:
 
         def clean(input: str) -> str:
             return re.sub(r'(\w)--(\w)', r'\1-\2', input)
 
-        SIMILARITY_THRESHOLD: float = 0.8
+        def workflowName(workflow: CuratorRepo) -> str:
+            return '-'.join(self.__getNameComponents(workflow.name)).lower()
 
-        workflowAName: str = '-'.join(
-            self.__getNameComponents(clean(workflowA.name))
-        ).lower()
-        workflowStepANameComponents: list[str] = self.__getNameComponents(
-            clean(workflowStepA).replace(workflowAName + '-', '')
+        def workflowAboutComponents(workflow: CuratorRepo) -> list[str]:
+            return self.__getAboutComponents(clean(workflow.about))
+
+        def workflowStepNameComponents(
+            workflowName: str, workflowAboutComponents: list[str], workflowStep: str
+        ) -> list[str]:
+            replace: str = '|'.join(
+                map(
+                    re.escape,
+                    list(
+                        map(
+                            lambda component: component + '-',
+                            workflowAboutComponents,
+                        )
+                    )
+                    + [workflowName + '-'],
+                )
+            )
+            self.__logger.debug('replacing: ' + replace)
+            return self.__getNameComponents(
+                clean(
+                    re.sub(
+                        replace,
+                        '',
+                        workflowStep,
+                    )
+                )
+            )
+
+        self.__logger.debug(str(workflowA) + ' ' + workflowStepA)
+        workflowAName: str = workflowName(workflowA)
+        workflowAAboutComponents: list[str] = workflowAboutComponents(workflowA)
+        workflowStepANameComponents: list[str] = workflowStepNameComponents(
+            workflowAName, workflowAAboutComponents, workflowStepA
+        )
+        self.__logger.debug(
+            workflowAName
+            + ' '
+            + str(workflowAAboutComponents)
+            + ' '
+            + str(workflowA)
+            + ' '
+            + workflowStepA
+            + ' '
+            + str(workflowStepANameComponents)
         )
         for workflowStepANameComponent in workflowStepANameComponents:
-            if len(workflowStepANameComponent) == 0:
-                self.__logger.warning(
-                    'zero length string: '
-                    + workflowAName
-                    + ' '
-                    + str(workflowA)
-                    + ' '
-                    + workflowStepA
-                    + ' '
-                    + str(workflowStepANameComponents)
-                )
             if self.__ignoreInStepName(workflowStepANameComponent):
                 continue
-
-            workflowBName: str = '-'.join(
-                self.__getNameComponents(clean(workflowB.name))
-            ).lower()
-            workflowStepBNameComponents = self.__getNameComponents(
-                clean(workflowStepB).replace(workflowBName + '-', '')
+            self.__logger.debug(str(workflowB) + ' ' + workflowStepB)
+            workflowBName: str = workflowName(workflowB)
+            workflowBAboutComponents: list[str] = workflowAboutComponents(workflowB)
+            workflowStepBNameComponents: list[str] = workflowStepNameComponents(
+                workflowBName, workflowBAboutComponents, workflowStepB
+            )
+            self.__logger.debug(
+                workflowBName
+                + ' '
+                + str(workflowBAboutComponents)
+                + ' '
+                + str(workflowB)
+                + ' '
+                + workflowStepB
+                + ' '
+                + str(workflowStepBNameComponents)
             )
             for workflowStepBNameComponent in workflowStepBNameComponents:
-                if len(workflowStepBNameComponent) == 0:
-                    self.__logger.warning(
-                        'zero length string: '
-                        + workflowBName
-                        + ' '
-                        + str(workflowB)
-                        + ' '
-                        + workflowStepB
-                        + ' '
-                        + str(workflowStepBNameComponents)
-                    )
                 if self.__ignoreInStepName(workflowStepBNameComponent):
                     continue
                 self.__logger.debug(
@@ -136,7 +178,7 @@ class Workflow:
                     self.__compareTwoStrings(
                         workflowStepANameComponent, workflowStepBNameComponent
                     )
-                    > SIMILARITY_THRESHOLD
+                    > similarityThreshold
                 ):
                     return True
                 else:
