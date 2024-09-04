@@ -14,9 +14,11 @@ class Workflow:
         self.__cache: dict[tuple[str, str], float] = {}
         self.__nlp = spacy.load('en_core_web_sm')
 
+    def __getNameComponents(self, name: str) -> list[str]:
+        return name.rsplit('---', 1)[0].split('-') if '---' in name else []
+
     def __ignoreInStepName(self, word: str) -> bool:
         if len(word) == 0:
-            self.__logger.warning('zero length word passed')
             return True
         if word.isdigit():
             return False
@@ -82,40 +84,54 @@ class Workflow:
             return re.sub(r'(\w)--(\w)', r'\1-\2', input)
 
         SIMILARITY_THRESHOLD: float = 0.8
-        for workflowStepANameComponent in (
-            clean(workflowStepA).split('---')[0].split('-')
-        ):
+
+        workflowAName: str = '-'.join(
+            self.__getNameComponents(clean(workflowA.name))
+        ).lower()
+        workflowStepANameComponents: list[str] = self.__getNameComponents(
+            clean(workflowStepA).replace(workflowAName + '-', '')
+        )
+        for workflowStepANameComponent in workflowStepANameComponents:
+            if len(workflowStepANameComponent) == 0:
+                self.__logger.warning(
+                    'zero length string: '
+                    + workflowAName
+                    + ' '
+                    + str(workflowA)
+                    + ' '
+                    + workflowStepA
+                    + ' '
+                    + str(workflowStepANameComponents)
+                )
             if self.__ignoreInStepName(workflowStepANameComponent):
                 continue
-            for workflowStepBNameComponent in (
-                clean(workflowStepB).split('---')[0].split('-')
-            ):
+
+            workflowBName: str = '-'.join(
+                self.__getNameComponents(clean(workflowB.name))
+            ).lower()
+            workflowStepBNameComponents = self.__getNameComponents(
+                clean(workflowStepB).replace(workflowBName + '-', '')
+            )
+            for workflowStepBNameComponent in workflowStepBNameComponents:
+                if len(workflowStepBNameComponent) == 0:
+                    self.__logger.warning(
+                        'zero length string: '
+                        + workflowBName
+                        + ' '
+                        + str(workflowB)
+                        + ' '
+                        + workflowStepB
+                        + ' '
+                        + str(workflowStepBNameComponents)
+                    )
                 if self.__ignoreInStepName(workflowStepBNameComponent):
                     continue
                 self.__logger.debug(
-                    'comparing '
+                    '\n\ncomparing '
                     + workflowStepANameComponent
                     + ' and '
                     + workflowStepBNameComponent
                 )
-                if (
-                    workflowStepANameComponent.lower() in workflowA.name.lower()
-                    and workflowStepBNameComponent.lower() in workflowB.name.lower()
-                ) or (
-                    workflowA.name.lower() in workflowStepANameComponent.lower()
-                    and workflowB.name.lower() in workflowStepBNameComponent.lower()
-                ):
-                    self.__logger.debug(
-                        'no match because name component in condition name (or vice versa): '
-                        + workflowStepANameComponent.lower()
-                        + ' '
-                        + workflowA.name.lower()
-                        + ' '
-                        + workflowStepBNameComponent.lower()
-                        + ' '
-                        + workflowB.name.lower()
-                    )
-                    continue
                 if (
                     self.__compareTwoStrings(
                         workflowStepANameComponent, workflowStepBNameComponent
@@ -148,7 +164,7 @@ class Workflow:
             list(
                 filter(
                     lambda word: not self.__ignoreInStepName(word),
-                    nameA.split('---')[0].split('-'),
+                    self.__getNameComponents(nameA),
                 )
             )
         )
@@ -156,7 +172,7 @@ class Workflow:
             list(
                 filter(
                     lambda word: not self.__ignoreInStepName(word),
-                    nameB.split('---')[0].split('-'),
+                    self.__getNameComponents(nameB),
                 )
             )
         )
@@ -314,12 +330,12 @@ class Workflow:
                                 or (
                                     not self._isNegative(
                                         ' '.join(
-                                            workflowStepA.split('---')[0].split('-')
+                                            self.__getNameComponents(workflowStepA)
                                         )
                                     )
                                     == self._isNegative(
                                         ' '.join(
-                                            workflowStepB.split('---')[0].split('-')
+                                            self.__getNameComponents(workflowStepB)
                                         )
                                     )
                                 )

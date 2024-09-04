@@ -14,7 +14,8 @@ def load_env() -> None:
 
 
 def test_workflowStepAnalysis() -> None:
-    assert TestWorkflow().workflowStepAnalysis(
+    testWorkflow: TestWorkflow = TestWorkflow()
+    assert testWorkflow.workflowStepAnalysis(
         CuratorRepo(
             'Diabetes---b8c00ec0-19ee-11ef-9de4-4d4ea830ad16', 'Diabetes - PH520'
         ),
@@ -25,7 +26,7 @@ def test_workflowStepAnalysis() -> None:
         ),
         'exudative-diabetes-mellitus---primary.cwl',
     )
-    assert TestWorkflow().workflowStepAnalysis(
+    assert testWorkflow.workflowStepAnalysis(
         CuratorRepo(
             'Diabetes---b8c00ec0-19ee-11ef-9de4-4d4ea830ad16', 'Diabetes - PH520'
         ),
@@ -35,6 +36,29 @@ def test_workflowStepAnalysis() -> None:
             'Diabetes Mellitus - PH419',
         ),
         'diabetes-mellitus-admission---primary.cwl',
+    )
+    assert not testWorkflow.workflowStepAnalysis(
+        CuratorRepo(
+            'Dementia---1e979480-1877-11ef-9de4-4d4ea830ad16', 'Dementia - PH417'
+        ),
+        'dementia-dementium---primary.cwl',
+        CuratorRepo(
+            'Dementia---175e62d0-1b50-11ef-9de4-4d4ea830ad16',
+            'Dementia (P13) - PH6599',
+        ),
+        'cerebral-dementia-p13---primary.cwl',
+    )
+    assert not testWorkflow.workflowStepAnalysis(
+        CuratorRepo(
+            'COVID-19-infection---0ad8bf70-16ea-11ef-9de4-4d4ea830ad16',
+            'COVID-19 infection - PH1',
+        ),
+        'acute-covid-19-infection---primary.cwl',
+        CuratorRepo(
+            'Long-covid---4bb839e0-397b-11ef-918f-350181f4a5db',
+            'Long covid - ZhuuOh7JC1cUoRzdSzvH5pas6k',
+        ),
+        'clinic-long-covid---primary.cwl',
     )
 
 
