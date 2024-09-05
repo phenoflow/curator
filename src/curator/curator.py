@@ -52,46 +52,53 @@ class Curator:
             formattedPhenotypes: str = (
                 '\n'.join(
                     [
-                        str(phenotypes.index(condition))
+                        'Condition '
+                        + str(phenotypes.index(condition))
                         + ': '
                         + self.__getPhenotype(condition.name)
                         for condition in phenotypes
                     ]
                 )
-                + '\nPrint these numbers as a list (e.g. [1, 2, 3]). This list must be the last thing in your response.'
+                + '\nPrint these numbers as a list (e.g. [1, 2, 3]). '
+                + 'If none of the numbers apply, print an empty list ([]). '
+                + 'This list must be the last thing in your response.'
             )
-            message: str = prompt + ':\n' + formattedPhenotypes
+            message: str = (
+                'Identify the numbers of ' + prompt + ':\n' + formattedPhenotypes
+            )
             self.__logger.debug(message)
             response: str = self.__LLMClient.sendMessage(message)
             self.__logger.debug(response)
             try:
                 extracted: str | None = (
                     match.group(1)
-                    if (match := re.search(r'\[([0-9,\s]*)\]', response.strip()))
+                    if (match := re.search(r'\[([0-9,\s]*?)\]', response.strip()))
                     else None
                 )
                 if extracted:
                     return extracted.split(', ')
+                elif extracted != None and len(str(extracted)) == 0:
+                    return []
                 else:
                     raise Exception
             except:
                 self.__logger.warning('unable to extract removals from: ' + response)
                 return []
 
+        otherConditions: list[str] = getExcluded(
+            'the conditions below that are not synonyms for, or involved in the treatment of, '
+            + self.__getPhenotype(leadPhenotype.name)
+        )
+
+        subconditions: list[str] = getExcluded(
+            'the conditions below that are a subcondition (e.g. a particular type) of '
+            + self.__getPhenotype(leadPhenotype.name)
+        )
+
         return [
             phenotype
             for phenotype in phenotypes
-            if str(phenotypes.index(phenotype))
-            not in (
-                getExcluded(
-                    'Identify the numbers of the conditions below that are not synonyms for, or involved in the treatment of, '
-                    + self.__getPhenotype(leadPhenotype.name)
-                )
-                + getExcluded(
-                    'Identify the numbers of the conditions below that specifically mention a subcondition (e.g. a particular type) of '
-                    + self.__getPhenotype(leadPhenotype.name)
-                )
-            )
+            if str(phenotypes.index(phenotype)) not in otherConditions + subconditions
         ]
 
     def _removeDuplicates(
