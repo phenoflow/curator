@@ -1,5 +1,5 @@
-from functools import reduce
 import logging, re, os, pickle
+from functools import reduce
 import spacy  # type: ignore
 from fuzzywuzzy import fuzz  # type: ignore
 
@@ -13,21 +13,6 @@ class Workflow:
         self.__ignoreInStepNameCache: dict[str, bool] = {}
         self.__cache: dict[tuple[str, str], float] = {}
         self.__nlp = spacy.load('en_core_web_sm')
-
-    def __getNameComponents(self, name: str) -> list[str]:
-        return name.rsplit('---', 1)[0].split('-') if '---' in name else []
-
-    def __getAboutComponents(self, about: str) -> list[str]:
-        return list(
-            map(
-                lambda aboutComponent: aboutComponent.replace('(', '')
-                .replace(')', '')
-                .replace('/', '')
-                .replace(' ', '-')
-                .lower(),
-                about.split(' - '),
-            )
-        )
 
     def __ignoreInStepName(self, word: str) -> bool:
         if len(word) == 0:
@@ -65,17 +50,8 @@ class Workflow:
         self.__ignoreInStepNameCache[word] = ignore
         return ignore
 
-    def _isNegative(self, phrase: str) -> bool:
-        phrase = phrase.lower()
-        words: list[str] = phrase.split(' ')
-        return (
-            'not' in words
-            or 'never' in words
-            or 'no' in words
-            or 'without' in words
-            or any([word.startswith('non') for word in words])
-            or any([word.startswith('un') for word in words])
-        )
+    def __getNameComponents(self, name: str) -> list[str]:
+        return name.rsplit('---', 1)[0].split('-') if '---' in name else []
 
     def __compareTwoStrings(self, str1: str, str2: str) -> float:
         if (str1, str2) in self.__cache:
@@ -84,120 +60,13 @@ class Workflow:
         self.__cache[(str1, str2)] = similarity
         return similarity
 
-    def _workflowStepAnalysis(
+    def __samePhenotype(
         self,
-        workflowA: CuratorRepo,
-        workflowStepA: str,
-        workflowB: CuratorRepo,
-        workflowStepB: str,
-        similarityThreshold: float = 0.8,
+        nameA: str,
+        nameB: str,
+        similarity: bool = False,
+        simlarityThreshold: float = 0.9,
     ) -> bool:
-
-        def clean(input: str) -> str:
-            return re.sub(r'(\w)--(\w)', r'\1-\2', input)
-
-        def workflowName(workflow: CuratorRepo) -> str:
-            return '-'.join(self.__getNameComponents(workflow.name)).lower()
-
-        def workflowAboutComponents(workflow: CuratorRepo) -> list[str]:
-            return self.__getAboutComponents(clean(workflow.about))
-
-        def workflowStepNameComponents(
-            workflowName: str, workflowAboutComponents: list[str], workflowStep: str
-        ) -> list[str]:
-            replace: str = '|'.join(
-                map(
-                    re.escape,
-                    list(
-                        map(
-                            lambda component: component + '-',
-                            workflowAboutComponents,
-                        )
-                    )
-                    + [workflowName + '-'],
-                )
-            )
-            self.__logger.debug('replacing: ' + replace)
-            return self.__getNameComponents(
-                clean(
-                    re.sub(
-                        replace,
-                        '',
-                        workflowStep,
-                    )
-                )
-            )
-
-        self.__logger.debug(str(workflowA) + ' ' + workflowStepA)
-        workflowAName: str = workflowName(workflowA)
-        workflowAAboutComponents: list[str] = workflowAboutComponents(workflowA)
-        workflowStepANameComponents: list[str] = workflowStepNameComponents(
-            workflowAName, workflowAAboutComponents, workflowStepA
-        )
-        self.__logger.debug(
-            workflowAName
-            + ' '
-            + str(workflowAAboutComponents)
-            + ' '
-            + str(workflowA)
-            + ' '
-            + workflowStepA
-            + ' '
-            + str(workflowStepANameComponents)
-        )
-        for workflowStepANameComponent in workflowStepANameComponents:
-            if self.__ignoreInStepName(workflowStepANameComponent):
-                continue
-            self.__logger.debug(str(workflowB) + ' ' + workflowStepB)
-            workflowBName: str = workflowName(workflowB)
-            workflowBAboutComponents: list[str] = workflowAboutComponents(workflowB)
-            workflowStepBNameComponents: list[str] = workflowStepNameComponents(
-                workflowBName, workflowBAboutComponents, workflowStepB
-            )
-            self.__logger.debug(
-                workflowBName
-                + ' '
-                + str(workflowBAboutComponents)
-                + ' '
-                + str(workflowB)
-                + ' '
-                + workflowStepB
-                + ' '
-                + str(workflowStepBNameComponents)
-            )
-            for workflowStepBNameComponent in workflowStepBNameComponents:
-                if self.__ignoreInStepName(workflowStepBNameComponent):
-                    continue
-                self.__logger.debug(
-                    '\n\ncomparing '
-                    + workflowStepANameComponent
-                    + ' and '
-                    + workflowStepBNameComponent
-                )
-                if (
-                    self.__compareTwoStrings(
-                        workflowStepANameComponent, workflowStepBNameComponent
-                    )
-                    > similarityThreshold
-                ):
-                    return True
-                else:
-                    self.__logger.debug(
-                        'no match because similarity not high enough: '
-                        + workflowStepANameComponent.lower()
-                        + ' '
-                        + workflowA.name.lower()
-                        + ' '
-                        + workflowStepBNameComponent.lower()
-                        + ' '
-                        + workflowB.name.lower()
-                    )
-        self.__logger.debug('no match')
-        return False
-
-    def __samePhenotype(self, nameA: str, nameB: str, similarity: bool = False) -> bool:
-
-        SIMILARITY_THRESHOLD: float = 0.9
 
         def clean(input: str) -> str:
             return re.sub(r'[^a-zA-Z0-9]', '', input.lower())
@@ -225,7 +94,7 @@ class Workflow:
             and len(nameB) > 0
             and (
                 (
-                    self.__compareTwoStrings(nameA, nameB) > SIMILARITY_THRESHOLD
+                    self.__compareTwoStrings(nameA, nameB) > simlarityThreshold
                     if similarity
                     else False
                 )
@@ -289,6 +158,141 @@ class Workflow:
         )
         return phenotypeGroups
 
+    def __getAboutComponents(self, about: str) -> list[str]:
+        return list(
+            map(
+                lambda aboutComponent: aboutComponent.replace('(', '')
+                .replace(')', '')
+                .replace('/', '')
+                .replace(' ', '-')
+                .lower(),
+                about.split(' - '),
+            )
+        )
+
+    def _isNegative(self, phrase: str) -> bool:
+        phrase = phrase.lower()
+        words: list[str] = phrase.split(' ')
+        return (
+            'not' in words
+            or 'never' in words
+            or 'no' in words
+            or 'without' in words
+            or any([word.startswith('non') for word in words])
+            or any([word.startswith('un') for word in words])
+        )
+
+    def _workflowStepAnalysis(
+        self,
+        workflowA: CuratorRepo,
+        workflowAStep: str,
+        workflowB: CuratorRepo,
+        workflowBStep: str,
+        similarityThreshold: float = 0.8,
+    ) -> bool:
+
+        def clean(input: str) -> str:
+            return re.sub(r'(\w)--(\w)', r'\1-\2', input)
+
+        def workflowName(workflow: CuratorRepo) -> str:
+            return '-'.join(self.__getNameComponents(workflow.name)).lower()
+
+        def workflowAboutComponents(workflow: CuratorRepo) -> list[str]:
+            return self.__getAboutComponents(clean(workflow.about))
+
+        def workflowStepNameComponents(
+            workflowName: str, workflowAboutComponents: list[str], workflowStep: str
+        ) -> list[str]:
+            replace: str = '|'.join(
+                map(
+                    re.escape,
+                    list(
+                        map(
+                            lambda component: component + '-',
+                            workflowAboutComponents,
+                        )
+                    )
+                    + [workflowName + '-'],
+                )
+            )
+            self.__logger.debug('replacing: ' + replace)
+            return self.__getNameComponents(
+                clean(
+                    re.sub(
+                        replace,
+                        '',
+                        workflowStep,
+                    )
+                )
+            )
+
+        self.__logger.debug(str(workflowA) + ' ' + workflowAStep)
+        workflowAName: str = workflowName(workflowA)
+        workflowAAboutComponents: list[str] = workflowAboutComponents(workflowA)
+        workflowAStepNameComponents: list[str] = workflowStepNameComponents(
+            workflowAName, workflowAAboutComponents, workflowAStep
+        )
+        self.__logger.debug(
+            workflowAName
+            + ' '
+            + str(workflowAAboutComponents)
+            + ' '
+            + str(workflowA)
+            + ' '
+            + workflowAStep
+            + ' '
+            + str(workflowAStepNameComponents)
+        )
+        for workflowAStepNameComponent in workflowAStepNameComponents:
+            if self.__ignoreInStepName(workflowAStepNameComponent):
+                continue
+            self.__logger.debug(str(workflowB) + ' ' + workflowBStep)
+            workflowBName: str = workflowName(workflowB)
+            workflowBAboutComponents: list[str] = workflowAboutComponents(workflowB)
+            workflowBStepNameComponents: list[str] = workflowStepNameComponents(
+                workflowBName, workflowBAboutComponents, workflowBStep
+            )
+            self.__logger.debug(
+                workflowBName
+                + ' '
+                + str(workflowBAboutComponents)
+                + ' '
+                + str(workflowB)
+                + ' '
+                + workflowBStep
+                + ' '
+                + str(workflowBStepNameComponents)
+            )
+            for workflowBStepNameComponent in workflowBStepNameComponents:
+                if self.__ignoreInStepName(workflowBStepNameComponent):
+                    continue
+                self.__logger.debug(
+                    '\n\ncomparing '
+                    + workflowAStepNameComponent
+                    + ' and '
+                    + workflowBStepNameComponent
+                )
+                if (
+                    self.__compareTwoStrings(
+                        workflowAStepNameComponent, workflowBStepNameComponent
+                    )
+                    > similarityThreshold
+                ):
+                    return True
+                else:
+                    self.__logger.debug(
+                        'no match because similarity not high enough: '
+                        + workflowAStepNameComponent.lower()
+                        + ' '
+                        + workflowA.name.lower()
+                        + ' '
+                        + workflowBStepNameComponent.lower()
+                        + ' '
+                        + workflowB.name.lower()
+                    )
+        self.__logger.debug('no match')
+        return False
+
     def getIntersections(
         self,
         workflows: dict[CuratorRepo, list[str]],
@@ -344,52 +348,52 @@ class Workflow:
                         + ')',
                     )
                     iteration += 1
-                    for workflowStepA in list(
+                    for workflowAStep in list(
                         filter(
                             lambda sibling: sibling.endswith('.cwl'),
                             workflows[workflowA],
                         )
                     ):
-                        if 'load' in workflowStepA or 'output' in workflowStepA:
+                        if 'load' in workflowAStep or 'output' in workflowAStep:
                             continue
-                        for workflowStepB in list(
+                        for workflowBStep in list(
                             filter(
                                 lambda sibling: sibling.endswith('.cwl'),
                                 workflows[workflowB],
                             )
                         ):
                             if (
-                                ('load' in workflowStepB or 'output' in workflowStepB)
-                                or (workflowStepA == workflowStepB)
+                                ('load' in workflowBStep or 'output' in workflowBStep)
+                                or (workflowAStep == workflowBStep)
                                 or (
                                     (workflowA, workflowB) in intersection
                                     and (
-                                        workflowStepB,
-                                        workflowStepA,
+                                        workflowBStep,
+                                        workflowAStep,
                                     )
                                     in intersection[(workflowA, workflowB)]
                                 )
                                 or (
                                     not self._isNegative(
                                         ' '.join(
-                                            self.__getNameComponents(workflowStepA)
+                                            self.__getNameComponents(workflowAStep)
                                         )
                                     )
                                     == self._isNegative(
                                         ' '.join(
-                                            self.__getNameComponents(workflowStepB)
+                                            self.__getNameComponents(workflowBStep)
                                         )
                                     )
                                 )
                             ):
                                 continue
-                            # if not workflowStepA.split('---')[1] == workflowStepB.split('---')[1]: continue
+                            # if not workflowAStep.split('---')[1] == workflowBStep.split('---')[1]: continue
                             if self._workflowStepAnalysis(
-                                workflowA, workflowStepA, workflowB, workflowStepB
+                                workflowA, workflowAStep, workflowB, workflowBStep
                             ):
                                 intersection.setdefault(
                                     (workflowA, workflowB), set()
-                                ).add((workflowStepA, workflowStepB))
+                                ).add((workflowAStep, workflowBStep))
             intersections[phenotype] = intersection
             with open(path, 'wb') as f:
                 pickle.dump(intersections, f)
