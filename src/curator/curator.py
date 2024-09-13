@@ -34,12 +34,22 @@ class Curator:
                 for curatorRepo in [phenotypeGroup[0]] + phenotypeGroup[1]
                 if '- PH' in curatorRepo.about
             ]
+
+            def idToPhenotype(id: str) -> CuratorRepo | None:
+                repoAsList: list[CuratorRepo] = list(
+                    filter(lambda repo: id in repo.about, repos)
+                )
+                if len(repoAsList) > 0:
+                    return repoAsList[0]
+                else:
+                    self.__logger.warning('no match on phenoflow for HDR id: ' + id)
+                    return None
+
             return [
-                list(filter(lambda repo: result['phenotype_id'] in repo.about, repos))[
-                    0
-                ]
+                repo
                 for result in results
-                if result['phenotype_id'] not in existingIds
+                if (repo := idToPhenotype(result['phenotype_id'])) is not None
+                and result['phenotype_id'] not in existingIds
             ]
         else:
             return []
