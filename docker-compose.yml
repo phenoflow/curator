@@ -1,10 +1,14 @@
 services:
-  
-  llm:
-    image: llamacpp-server
-    command: --server --host 0.0.0.0 --model /model/ggml-model-Q4_K_M.gguf -c 2048
+
+  app:
+    image: openaiserver
     ports:
-      - '8080:8080'
-    volumes: 
-      - ${MODEL_PATH}:/model
-    restart: unless-stopped
+      - 8080:8080
+    environment:
+      Llama__3_1__8B_Quant_Instruct: ${Llama__3_1__8B_Quant_Instruct}
+      MedLlama__3__8B_Quant: ${MedLlama__3__8B_Quant}
+      Biomistral__7B_Quant: ${Biomistral__7B_Quant}
+    volumes:
+      - ${MODEL_FOLDER}:${MODEL_FOLDER}
+      - ./output/cache.db:/openai-server/output/cache.db
+    command: openaiserver
