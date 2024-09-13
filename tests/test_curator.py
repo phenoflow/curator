@@ -55,16 +55,18 @@ def test_removeUnrelatedPhenotypesUsingLLM() -> None:
 
 def getPhenotypeGroups() -> dict[CuratorRepo, list[CuratorRepo]]:
     repoToSteps: dict[CuratorRepo, list[str]] = CuratorGithub().getRepoToSteps()
-    return Curator().getPhenotypeGroups(
+    phenotypeGroups: dict[
+        CuratorRepo, list[CuratorRepo]
+    ] = Curator().getPhenotypeGroups(
         {key: repoToSteps[key] for key in list(repoToSteps)[: sys.maxsize]}
     )
+    with open('phenotypeGroups.json', 'w') as file:
+        file.write(json.dumps(phenotypeGroups, cls=SetTupleEncoder, indent=2))
+    return phenotypeGroups
 
 
 def test_getPhenotypeGroups_Curator() -> None:
-    phenotypeGroups: dict[CuratorRepo, list[CuratorRepo]] = getPhenotypeGroups()
-    assert len(phenotypeGroups)
-    with open('phenotypeGroups.json', 'w') as file:
-        file.write(json.dumps(phenotypeGroups, cls=SetTupleEncoder, indent=2))
+    assert len(getPhenotypeGroups())
 
 
 def test_workflowIntersection_Curator() -> None:
