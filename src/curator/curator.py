@@ -49,15 +49,25 @@ class Curator:
     ) -> list[CuratorRepo]:
 
         def getIncluded(prompt: str) -> list[str]:
+            promptPhenotypes: list[str] = sorted(
+                list(
+                    set(
+                        [
+                            self.__getPhenotype(phenotype.name)
+                            for phenotype in phenotypes
+                        ]
+                    )
+                )
+            )
             formattedPhenotypes: str = (
                 '\n'.join(
                     [
-                        str(phenotypes.index(condition) + 1)
+                        str(promptPhenotypes.index(condition) + 1)
                         + ': '
-                        + self.__getPhenotype(condition.name)
+                        + condition
                         + ','
-                        for condition in phenotypes
-                    ]
+                        for condition in promptPhenotypes
+                    ],
                 )[:-1]
                 + '.\nPrint all the correct answers as a list (e.g. [1, 2, 3]). '
                 + 'If none of the answers are correct, print an empty list ([]). '
@@ -76,7 +86,10 @@ class Curator:
                     else None
                 )
                 if extracted:
-                    return extracted.split(', ')
+                    return [
+                        promptPhenotypes[int(index) - 1]
+                        for index in extracted.split(', ')
+                    ]
                 elif extracted != None and len(str(extracted)) == 0:
                     return []
                 else:
@@ -84,6 +97,15 @@ class Curator:
             except:
                 self.__logger.warning('unable to extract removals from: ' + response)
                 return []
+
+        exactMatches: list[CuratorRepo] = [
+            phenotype
+            for phenotype in phenotypes
+            if phenotype != leadPhenotype
+            and self.__getPhenotype(phenotype.name).lower().strip()
+            == self.__getPhenotype(leadPhenotype.name).lower().strip()
+        ]
+        phenotypes = list(set(phenotypes) - set(exactMatches))
 
         synonyms: list[str] = getIncluded(
             'are another way of writing ' + self.__getPhenotype(leadPhenotype.name)
@@ -98,10 +120,10 @@ class Curator:
             + self.__getPhenotype(leadPhenotype.name)
         )
 
-        return [
+        return exactMatches + [
             phenotype
             for phenotype in phenotypes
-            if str(phenotypes.index(phenotype) + 1)
+            if self.__getPhenotype(phenotype.name)
             in synonyms + medications + subconditions
         ]
 
