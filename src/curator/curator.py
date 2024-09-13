@@ -123,8 +123,8 @@ class Curator:
         return exactMatches + [
             phenotype
             for phenotype in phenotypes
-            if self.__getPhenotype(phenotype.name)
-            in synonyms + medications + subconditions
+            if self.__getPhenotype(phenotype.name) in synonyms + medications
+            and self.__getPhenotype(phenotype.name) not in subconditions
         ]
 
     def _removeDuplicates(
