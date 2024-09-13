@@ -48,23 +48,23 @@ class Curator:
         self, leadPhenotype: CuratorRepo, phenotypes: list[CuratorRepo]
     ) -> list[CuratorRepo]:
 
-        def getExcluded(prompt: str) -> list[str]:
+        def getIncluded(prompt: str) -> list[str]:
             formattedPhenotypes: str = (
                 '\n'.join(
                     [
-                        'Condition '
-                        + str(phenotypes.index(condition))
+                        str(phenotypes.index(condition) + 1)
                         + ': '
                         + self.__getPhenotype(condition.name)
+                        + ','
                         for condition in phenotypes
                     ]
-                )
-                + '\nPrint these numbers as a list (e.g. [1, 2, 3]). '
-                + 'If none of the numbers apply, print an empty list ([]). '
+                )[:-1]
+                + '.\nPrint all the correct answers as a list (e.g. [1, 2, 3]). '
+                + 'If none of the answers are correct, print an empty list ([]). '
                 + 'This list must be the last thing in your response.'
             )
             message: str = (
-                'Identify the numbers of ' + prompt + ':\n' + formattedPhenotypes
+                'Which of the following ' + prompt + ':\n' + formattedPhenotypes
             )
             self.__logger.debug(message)
             response: str = self.__LLMClient.sendMessage(message)
@@ -85,20 +85,24 @@ class Curator:
                 self.__logger.warning('unable to extract removals from: ' + response)
                 return []
 
-        otherConditions: list[str] = getExcluded(
-            'the conditions below that are not synonyms for, or involved in the treatment of, '
-            + self.__getPhenotype(leadPhenotype.name)
+        synonyms: list[str] = getIncluded(
+            'are another way of writing ' + self.__getPhenotype(leadPhenotype.name)
         )
 
-        subconditions: list[str] = getExcluded(
-            'the conditions below that are a subcondition (e.g. a particular type) of '
+        medications: list[str] = getIncluded(
+            'are medications for ' + self.__getPhenotype(leadPhenotype.name)
+        )
+
+        subconditions: list[str] = getIncluded(
+            'are subconditions (e.g. particular types) of '
             + self.__getPhenotype(leadPhenotype.name)
         )
 
         return [
             phenotype
             for phenotype in phenotypes
-            if str(phenotypes.index(phenotype)) not in otherConditions + subconditions
+            if str(phenotypes.index(phenotype) + 1)
+            in synonyms + medications + subconditions
         ]
 
     def _removeDuplicates(
