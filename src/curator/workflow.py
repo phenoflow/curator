@@ -46,6 +46,7 @@ class Workflow:
             or (tag == 'CCONJ' or tag == 'SCONJ')
             or tag == 'ADP'
             or tag == 'ADV'
+            or re.match(r'.*\dmg$', word) is not None
         )
         self.__ignoreInStepNameCache[word] = ignore
         return ignore
@@ -188,7 +189,7 @@ class Workflow:
         workflowAStep: str,
         workflowB: CuratorRepo,
         workflowBStep: str,
-        similarityThreshold: float = 0.8,
+        similarityThreshold: float = 0.9,
     ) -> bool:
 
         def clean(input: str) -> str:

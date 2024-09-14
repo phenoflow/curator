@@ -84,6 +84,18 @@ def test_workflowStepAnalysis() -> None:
         ),
         'diabetes-drug-code-sitagliptin---primary.cwl',
     )
+    assert not testWorkflow.workflowStepAnalysis(
+        CuratorRepo(
+            'Diabetes---87522990-184a-11ef-9de4-4d4ea830ad16',
+            'Diabetes - PH375',
+        ),
+        'stable-diabetes---primary.cwl',
+        CuratorRepo(
+            'Thiazolidinediones---b8c49280-1c26-11ef-bdee-f10829e63eeb',
+            'Thiazolidinediones - PH751',
+        ),
+        'thiazolidinediones-tablet---primary.cw',
+    )
 
 
 def getPhenotypeGroups() -> dict[CuratorRepo, list[CuratorRepo]]:
