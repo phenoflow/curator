@@ -1,9 +1,10 @@
 services:
 
-  app:
+  openaiserver:
     image: openaiserver
     ports:
       - 8080:8080
+    restart: unless-stopped
     environment:
       Llama__3_1__8B_Quant_Instruct: ${Llama__3_1__8B_Quant_Instruct}
       MedLlama__3__8B_Quant: ${MedLlama__3__8B_Quant}
