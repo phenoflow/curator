@@ -1,5 +1,7 @@
-import logging, re, configparser
+import logging, re, configparser, os, pickle, time
 from typing import Any
+from json import JSONDecodeError
+
 from pyconceptlibraryclient import Client, DOMAINS  # type: ignore
 
 from curator.workflow import Workflow
@@ -15,6 +17,11 @@ class Curator:
         self.__config.read('config/config.ini')
         self.__workflow: Workflow = Workflow()
         self.__client: Client = Client(public=True, url=DOMAINS.HDRUK)
+        self.__additionalPhenotypesFromHDR: dict[str, list[Any]] = {}
+        path: str = 'output/additionalPhenotypesFromHDR.p'
+        if os.path.exists(path):
+            with open(path, 'rb') as file:
+                self.__additionalPhenotypesFromHDR = pickle.load(file)
         self.__LLMClient = LLMClient(False)
 
     def __getPhenotype(self, repoName: str) -> str:
@@ -27,7 +34,22 @@ class Curator:
     ) -> list[CuratorRepo]:
         searchName: str = self.__getPhenotype(phenotypeGroup[0].name)
         self.__logger.debug('searching for: ' + searchName)
-        results: list[Any] = self.__client.phenotypes.get(search=searchName)
+        results: list[Any] = []
+        if searchName in self.__additionalPhenotypesFromHDR:
+            results = self.__additionalPhenotypesFromHDR[searchName]
+        else:
+            while True:
+                try:
+                    results = self.__client.phenotypes.get(search=searchName)
+                    break
+                except JSONDecodeError:
+                    time.sleep(5)
+                    self.__logger.warning(
+                        'error from hdr in search for ' + searchName + ', retrying...'
+                    )
+            self.__additionalPhenotypesFromHDR[searchName] = results
+            with open('output/additionalPhenotypesFromHDR.p', 'wb') as f:
+                pickle.dump(self.__additionalPhenotypesFromHDR, f)
         if len(results) > 0:
             existingIds: list[str] = [
                 curatorRepo.about.split(' - ')[1]
