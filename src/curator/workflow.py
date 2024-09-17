@@ -22,6 +22,7 @@ class Workflow:
         if word in self.__ignoreInStepNameCache:
             return self.__ignoreInStepNameCache[word]
         phenotypeSynonyms: list[str] = [
+            'phenotype',
             'syndrome',
             'infection',
             'infections',
@@ -117,7 +118,8 @@ class Workflow:
                     'returning ' + str(len(phenotypeGroups)) + ' phenotype groups'
                 )
                 return phenotypeGroups
-        iteration = 1
+        iteration: int = 1
+        groupedWorkflows: list[CuratorRepo] = []
         for workflowA in list(workflows.keys()):
             if workflowA in [
                 phenotype
@@ -149,8 +151,12 @@ class Workflow:
                     for phenotype in sublist
                 ]:
                     continue
-                if self.__samePhenotype(workflowA.name, workflowB.name):
+                if (
+                    self.__samePhenotype(workflowA.name, workflowB.name)
+                    and workflowB not in groupedWorkflows
+                ):
                     phenotypeGroups.setdefault(workflowA, []).append(workflowB)
+                    groupedWorkflows.append(workflowB)
                     with open(path, 'wb') as f:
                         pickle.dump(phenotypeGroups, f)
         self.__logger.debug(phenotypeGroups)
